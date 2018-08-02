@@ -14,6 +14,7 @@ Currently you need to manually fix four erros in the tex files, takes about 20 s
 - [ ] Deal with internal links
 - [x] Fix weird space+dot punctation in annotations
 - [ ] Improved tex template
+- [ ] Enable options: generate links, generate overtext modern spellings, etc.
 
 # License
 The code itself is under MIT, see repository.
