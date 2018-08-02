@@ -79,6 +79,9 @@ def get_annotation(el, driver):
     block_quotes = annotation_el.find_elements_by_tag_name("blockquote")
     [insert_block_quotes(bq) for bq in block_quotes]
 
+    # links = annotation_el.find_elements_by_tag_name("a")
+    # [insert_links(link) for link in links]
+
 
     keywords = annotation_el.find_elements_by_tag_name("i")[0].text.rstrip(
         punctuation)  # since the source is pretty random of whether there is a trailing dot or not in between tags...
@@ -135,6 +138,21 @@ def insert_modern_english_overtext(paragraph):
 def insert_block_quotes(element):
     wrap_inner_html(element, "\\begin{quote}", "\\end{quote}")
 
+
+def insert_links(element):
+    # determine if internal or external by a simple check
+    link = element.get_attribute("href")
+
+    if link[:3] == "../":
+        # internal link
+        # get line number, if present
+        splt = link[:3].split("line#")
+        book_number = int(splt[0].split("/text.shtml")[0].split("_")[1])
+        line_number = int(splt[1]) if len(splt) == 2 else None
+        print("IntLink:",book_number, line_number)
+    else:
+        # external link
+        wrap_inner_html(element, "\href{" + link + "}{", "}")
 
 def convert_paragraph_to_latex(paragraph):
     # Find all words which have a modern english hover text and replace
