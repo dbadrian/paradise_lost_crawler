@@ -15,6 +15,34 @@ marking = "?/{}/?"  # just shouldnt look like html tags
 
 LAST_ANNOTATION = ()
 
+import re
+
+def tex_escape(text):
+    """
+        FROM: https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
+        https://creativecommons.org/licenses/by-sa/4.0/
+
+        Change made in line15: unicode -> str in python3
+        :param text: a plain text message
+        :return: the message escaped to appear correctly in LaTeX
+    """
+    conv = {
+        '&': r'\&',
+        '%': r'\%',
+        '$': r'\$',
+        '#': r'\#',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+        '^': r'\^{}',
+        '\\': r'\textbackslash{}',
+        '<': r'\textless{}',
+        '>': r'\textgreater{}',
+    }
+    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
+    return regex.sub(lambda match: conv[match.group()], text)
+
 
 def generate_marking(keywords):
     return marking.format("".join(keywords.split(" ")))
@@ -79,8 +107,8 @@ def get_annotation(el, driver):
     block_quotes = annotation_el.find_elements_by_tag_name("blockquote")
     [insert_block_quotes(bq) for bq in block_quotes]
 
-    # links = annotation_el.find_elements_by_tag_name("a")
-    # [insert_links(link) for link in links]
+    links = annotation_el.find_elements_by_tag_name("a")
+    [insert_links(link) for link in links]
 
 
     keywords = annotation_el.find_elements_by_tag_name("i")[0].text.rstrip(
@@ -143,16 +171,19 @@ def insert_links(element):
     # determine if internal or external by a simple check
     link = element.get_attribute("href")
 
-    if link[:3] == "../":
+    if link[:50] == "https://www.dartmouth.edu/~milton/reading_room/pl/":
         # internal link
         # get line number, if present
-        splt = link[:3].split("line#")
-        book_number = int(splt[0].split("/text.shtml")[0].split("_")[1])
-        line_number = int(splt[1]) if len(splt) == 2 else None
-        print("IntLink:",book_number, line_number)
+        pass
+
+        # splt = link[50:].split("line#")
+        # print(splt)
+        # book_number = int(splt[0].split("/text.shtml")[0].split("_")[1])
+        # line_number = int(splt[1]) if len(splt) == 2 else None
+        # print("IntLink:",book_number, line_number)
     else:
         # external link
-        wrap_inner_html(element, "\href{" + link + "}{", "}")
+        wrap_inner_html(element, "\href{" + tex_escape(link) + "}{", "}")
 
 def convert_paragraph_to_latex(paragraph):
     # Find all words which have a modern english hover text and replace
@@ -175,7 +206,7 @@ def convert_paragraph_to_latex(paragraph):
 
     text = replace_markings_by_footnote(text, annotations)
 
-    # Some minor encapsulation
+    # Some minor encapsulation (manually...cant use tex_escape anymore!)
     text = text.replace("&", "\&")
 
     # Finally insert line breaks for latex
