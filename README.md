@@ -7,10 +7,11 @@ There are still some "bugs"/missing features, such as specially formatting block
 Currently you need to manually fix four erros in the tex files, takes about 20 seconds :).
 
 # Todo
-- [ ] Alternative (=modern) spelling (e.g., as "furigana" using ruby)
+- [x] Alternative (=modern) spelling (e.g., as "furigana" using ruby)
 - [ ] Incorrectly crawled annotations (double, probably due to timing issues with dynamic elements)
-- [ ] Deal with block quotes in annotations
+- [x] Deal with block quotes in annotations
 - [ ] Deal with links (internally and externally)
+- [x] Fix weird space+dot punctation in annotations
 - [ ] Improved tex template
 
 # License

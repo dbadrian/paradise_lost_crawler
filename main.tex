@@ -14,6 +14,11 @@
 \usepackage{scalerel}
 \usepackage{stackengine}
 
+\usepackage{ruby}
+
+\usepackage{relsize,etoolbox}% http://ctan.org/pkg/{relsize,etoolbox}
+\AtBeginEnvironment{quote}{\smaller}% Step font down one size relative to current font.
+
 \renewcommand{\poemtitlefont}{\normalfont\bfseries\Huge\centering} % Define the poem title style
 \setlength{\stanzaskip}{0.75\baselineskip} % The distance between stanzas
 
@@ -28,92 +33,92 @@
 	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
 	\poemlines{10}
 	\input{content/book1}
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 2}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book2}
-
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 3}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book3}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 4}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book4}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 5}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book5}
-	\newpage
-
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 6}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book6}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 7}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book7}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 8}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book8}
-	\newpage
-		
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 9}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book9}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 10}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book10}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 11}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book11}
-	\newpage
-	
-	\newpage
-	\setcounter{footnote}{0}
-	\poemtitle{Book 12}
-	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
-	\poemlines{10}
-	\input{content/book12}
-	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 2}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book2}
+%
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 3}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book3}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 4}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book4}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 5}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book5}
+%	\newpage
+%
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 6}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book6}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 7}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book7}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 8}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book8}
+%	\newpage
+%		
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 9}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book9}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 10}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book10}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 11}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book11}
+%	\newpage
+%	
+%	\newpage
+%	\setcounter{footnote}{0}
+%	\poemtitle{Book 12}
+%	\settowidth{\versewidth}{Instruct me, for Thou know'st; Thou from the first}
+%	\poemlines{10}
+%	\input{content/book12}
+%	\newpage
 	
 \end{document} 
