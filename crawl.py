@@ -1,281 +1,159 @@
+#!/usr/bin/env python
 import argparse
 import json
-import os
+from pathlib import Path
 import re
+import os
+import logging
 from string import punctuation
+import signal
+import sys
+from jinja2 import Template, Environment, FileSystemLoader
 
-import pypandoc
+import selenium
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-# from selenium.webdriver.chrome.options import Options
+
+# from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options
 from tqdm import tqdm
 
-marking = "?/{}/?"  # just shouldnt look like html tags
-
-LAST_ANNOTATION = ()
-
-import re
-
-def tex_escape(text):
-    """
-        FROM: https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
-        https://creativecommons.org/licenses/by-sa/4.0/
-
-        Change made in line15: unicode -> str in python3
-        :param text: a plain text message
-        :return: the message escaped to appear correctly in LaTeX
-    """
-    conv = {
-        '&': r'\&',
-        '%': r'\%',
-        '$': r'\$',
-        '#': r'\#',
-        '_': r'\_',
-        '{': r'\{',
-        '}': r'\}',
-        '~': r'\textasciitilde{}',
-        '^': r'\^{}',
-        '\\': r'\textbackslash{}',
-        '<': r'\textless{}',
-        '>': r'\textgreater{}',
-    }
-    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
-    return regex.sub(lambda match: conv[match.group()], text)
-
-
-def generate_marking(keywords):
-    return marking.format("".join(keywords.split(" ")))
-
-
-def createFolder(directory):
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-    except OSError:
-        print('Error: Creating directory. ' + directory)
-
-
-def html2latex(text):
-    output = pypandoc.convert(text, 'latex', format='html',
-                              extra_args=['-f', 'html+tex_math_dollars'])
-    return output
-
-
-def append_to_inner_html(el, text):
-    old_text_raw = el.get_attribute("innerHTML")
-    old_text_plain_length = len(el.text)
-
-    new_text = old_text_raw + text
-    driver.execute_script(
-        "arguments[0].innerHTML = {};".format(json.dumps(new_text)), el)
-    return old_text_plain_length
-
-
-def replace_markings_by_footnote(text, annotations):
-    for keywords, explanation, plain_text_len in annotations:
-        marking = generate_marking(keywords)
-        marking_len = len(marking)
-
-        start = text.find(marking)
-        while start != -1:
-            start = text.find(marking)
-            end = start + marking_len
-
-            text = text[:start - plain_text_len] + "\emph{" + text[
-                                                              start - plain_text_len:start] + "}\\footnote{\\emph{" + keywords + "}: " + explanation + "}" + text[
-                                                                                                                                                             end:]
-            start = text.find(marking)
-
-    return text
-
-
-def get_annotation(el, driver):
-    # simple .click() could potentially fail
-    driver.execute_script("arguments[0].click();", el)
-
-    try:
-        annotation_el = driver.find_element_by_class_name("annotation")
-        # inner_els = annotation_el.find_elements_by_xpath(".//*")
-        # WebDriverWait(driver, 10).until(
-        # EC.presence_of_element_located((By.CLASS_NAME, "annotation")))
-    except NoSuchElementException:
-        print("ERROR: Couldnt find the annotation for this element, skipping..")
-        return None
-
-    # preprocess the text:
-    block_quotes = annotation_el.find_elements_by_tag_name("blockquote")
-    [insert_block_quotes(bq) for bq in block_quotes]
-
-    links = annotation_el.find_elements_by_tag_name("a")
-    [insert_links(link) for link in links]
-
-
-    keywords = annotation_el.find_elements_by_tag_name("i")[0].text.rstrip(
-        punctuation)  # since the source is pretty random of whether there is a trailing dot or not in between tags...
-    explanation = annotation_el.text[len(keywords) + 2:]
-
-    # fix weird punctations in annotations
-    explanation = explanation.rstrip(".").rstrip() + "."
-
-    # bring the page back into a sane state, since the same el_id might be reused
-    # causing the annotation box to disappear instead. -> clean up
-    driver.execute_script("arguments[0].click();", el)
-
-    return keywords, explanation
-
-
-def insert_annotations_into_text(aid, driver):
-    el = driver.find_element_by_id(aid)
-    ret = get_annotation(el, driver)
-
-    if ret:
-        plain_text_len = append_to_inner_html(el, generate_marking(ret[0]))
-
-        return ret[0], ret[1], plain_text_len  # get_attribute("innerHTML"))#)
-    else:
-        return ret  # None
-
-
-def collect_all_annotations_of_paragraph(paragraph):
-    annotation_links = paragraph.find_elements_by_class_name("annotBtn")
-    return [link.get_attribute("id") for link in annotation_links]
-
-
-def wrap_inner_html(el, front, back):
-    old_text_raw = el.get_attribute("innerHTML")
-
-    new_text = front + old_text_raw + back
-    driver.execute_script(
-        "arguments[0].innerHTML = {};".format(json.dumps(new_text)), el)
-
-
-def insert_modern_english_overtext(paragraph):
-    old_words = paragraph.find_elements_by_class_name("varspell")
-
-    for word in old_words:
-        new_spelling = word.get_attribute("title")
-
-        # handle edges cases
-        new_spelling = "{" + new_spelling + "}" if new_spelling == "height" else new_spelling
-        front = '\\ruby{'
-        back = "}{" + new_spelling + "}\\hphantom{ }"
-        wrap_inner_html(word, front, back)
-
-
-def insert_block_quotes(element):
-    wrap_inner_html(element, "\\begin{quote}", "\\end{quote}")
-
-
-def insert_links(element):
-    # determine if internal or external by a simple check
-    link = element.get_attribute("href")
-
-    if link[:50] == "https://www.dartmouth.edu/~milton/reading_room/pl/":
-        # internal link
-        # get line number, if present
-        pass
-
-        # splt = link[50:].split("line#")
-        # print(splt)
-        # book_number = int(splt[0].split("/text.shtml")[0].split("_")[1])
-        # line_number = int(splt[1]) if len(splt) == 2 else None
-        # print("IntLink:",book_number, line_number)
-    else:
-        # external link
-        wrap_inner_html(element, "\href{" + tex_escape(link) + "}{", "}")
-
-def convert_paragraph_to_latex(paragraph):
-    # Find all words which have a modern english hover text and replace
-    # print(" :: Insert new spellings into HTML")
-    insert_modern_english_overtext(paragraph)
-
-    # Should be done last when it comes to preprocessing the text
-    # get annotation links
-    annotation_ids = collect_all_annotations_of_paragraph(paragraph)
-    annotations = [insert_annotations_into_text(aid, driver) for aid in
-                   annotation_ids]
-
-    annotations = [annon for annon in annotations if annon]
-
-    # Convert HTML to regular tex
-    text = paragraph.text
-
-    # Get rid of any [*] line number markings
-    text = re.sub('\\[.*?\\]', '', text)
-
-    text = replace_markings_by_footnote(text, annotations)
-
-    # Some minor encapsulation (manually...cant use tex_escape anymore!)
-    text = text.replace("&", "\&")
-
-    # Finally insert line breaks for latex
-    text = "\\\\\n".join(text.split("\n"))
-
-    return text
-
-
-def pad_verse(text):
-    return "\\begin{verse}[\\versewidth]\n" + text + "\n\\end{verse}\n\n"
-
-
-def crawl_book_content(driver):
-    main_content = driver.find_element_by_id("content")
-    paragraphs = main_content.find_elements_by_tag_name("p")
-
-    book = ""
-    for paragraph in tqdm(paragraphs[1:]):
-        pg_text = convert_paragraph_to_latex(paragraph) + "\\\\!"
-
-        book += pg_text
-
-    # Find the first white space
-
-    return convert_paragraph_to_latex(
-        paragraphs[0]) + "\n\n\\newpage" + pad_verse(book)
-
-
-LINKS2CRAWL = [
-    "https://www.dartmouth.edu/~milton/reading_room/pl/book_1/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_2/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_3/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_4/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_5/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_6/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_7/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_8/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_9/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_10/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_11/text.shtml",
-    # "https://www.dartmouth.edu/~milton/reading_room/pl/book_12/text.shtml",
-]
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--driver', '-d', type=str, default='phantomjs',
-                        help='Phantomjs, Chrome, Firefox supported',
-                        required=False)
-    args = parser.parse_args()
-
-    # Obtain Driver
-    print(" :: Obtaining Driver")
-    # instantiate a chrome options object so you can set the size and headless preference
+from crawler.links import PARADISE_LOST, PARADISE_REGAINED
+from crawler.latex import convert_raw_to_latex
+
+
+ENV_ARGS = {
+    'block_start_string': '\BLOCK{',
+    'block_end_string': '}',
+    'variable_start_string': '\VAR{',
+    'variable_end_string': '}',
+    'comment_start_string': '\#{',
+    'comment_end_string': '}',
+    'line_statement_prefix': '%-',
+    'line_comment_prefix': '%#',
+    'trim_blocks': True,
+    'autoescape': False,
+}
+
+
+PATH = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_ENVIRONMENT = Environment(
+	variable_start_string = '$$',
+	variable_end_string = '$$',
+    autoescape=False,
+    loader=FileSystemLoader(os.path.join(PATH, 'template')),
+    trim_blocks=True,
+    lstrip_blocks=True)
+
+
+def setup_webdriver(driver_type="firefox"):
     options = Options()
     options.add_argument("--headless")
 
-    # driver = webdriver.Chrome(chrome_options=options, executable_path='chromedriver')
-    # FALLBACKS
-    driver = webdriver.Firefox(
-        firefox_options=options)  # make sure to change the import for options
-    # driver = webdriver.Firefox() # for non-headless mode
-    # driver = webdriver.PhantomJS() # headless alternative
+    if driver_type == "firefox":
+        driver = webdriver.Firefox(firefox_options=options)
+    elif driver_type == "phantomjs":
+        driver = webdriver.PhantomJS()  # headless alternative
+    else:
+        raise NotImplementedError(f"Unknown driver type {driver_type}")
 
-    createFolder("./content")
-    for idx, link in enumerate(LINKS2CRAWL, start=1):
-        print("Crawling book:", idx)
-        driver.get(link)
-        content = crawl_book_content(driver)
+    return driver
 
-        with open(os.path.join("content", "book{}.tex".format(idx)),
-                  "w") as text_file:
-            text_file.write(content)
+
+def get_inner_html_by_class(el, class_name):
+    el = el.find_element_by_class_name(class_name)
+    try:
+        return el.get_attribute("innerHTML")
+    except selenium.common.exceptions.NoSuchElementException:
+        return None
+
+
+def crawl_content(main_el):
+    els = main_el.find_elements_by_tag_name("p")[1:]
+    return els
+
+
+def crawl_site(link, driver, PREFIX):
+    driver.get(link)
+    main_el = driver.find_element_by_id("content")
+
+    raw_content = {}
+    raw_content["title"] = get_inner_html_by_class(main_el, "msubhead") 
+    raw_content["subtitle"] = get_inner_html_by_class(main_el, "msubsubhead")
+    raw_content["argument"] = convert_raw_to_latex(
+        driver, main_el.find_elements_by_class_name("margument")[0], PREFIX
+    )
+    raw_content["main"] = []
+    for p in tqdm(crawl_content(main_el)):
+        raw_content["main"].append(convert_raw_to_latex(driver, p, PREFIX))
+    title_el = driver.find_element_by_class_name("title")
+    raw_content["end"] = get_inner_html_by_class(title_el, "mi")
+    return raw_content
+
+
+def render_template(template_filename, context):
+    return TEMPLATE_ENVIRONMENT.get_template(template_filename).render(context)
+
+
+def render_latex(p_out, content, template='book.tpl'):
+    with open(p_out, 'w') as f:
+        tex = render_template(template, content)
+        f.write(tex)
+
+def main(args):
+    driver = None
+    try:
+        print(":: Creating Output Folder")
+        p_out = args.output
+        p_out.mkdir(parents=True, exist_ok=True)
+        fn_content = p_out.joinpath("content.json")
+        if not fn_content.exists() or args.force:
+            # Obtain Driver
+            print(":: Obtaining Driver")
+            driver = setup_webdriver(args.driver)
+
+            book = {}
+            
+            for idx, (name, link) in enumerate(PARADISE_LOST.items()):
+                print(f" - Parsing {name}")
+                book[name] = crawl_site(link, driver, name)
+                # write "incremental" results
+                with open(fn_content, "w") as f:
+                    json.dump(book, f)
+                break
+        else:
+            print("Skipping crawling")
+
+        with open(fn_content, "r") as f:
+            content = json.load(f)
+        for idx, (name, _) in enumerate(PARADISE_LOST.items()):
+            render_latex(p_out.joinpath(f"{name}.tex"), content[name])
+            break
+
+        files = {"files": [f"{name}.tex" for name in content.keys()]}
+        render_latex(p_out.joinpath(f"content.tex"), files, template="content.tpl")
+
+    except KeyboardInterrupt:
+        # I know...signal should be handled properly
+        print("!! Emergency Shutdown !!")
+        if driver:
+            driver.quit()
+
+    if driver:
+        driver.quit()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", "-o", type=Path, required=True)
+    parser.add_argument(
+        "--driver",
+        "-d",
+        type=str,
+        default="firefox",
+        help="Phantomjs, Chrome, Firefox supported",
+        required=False,
+    )
+    parser.add_argument("--force", "-f", default=False, action="store_true")
+    args = parser.parse_args()
+    main(args)
