@@ -1,6 +1,6 @@
 import re
 from string import punctuation
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 
 from .html import (
     wrap_inner_html,
@@ -83,17 +83,20 @@ def tex_escape(text):
 
 def insert_modern_english_overtext(driver, paragraph):
     old_words = paragraph.find_elements_by_class_name("varspell")
-
     for word in old_words:
-        new_spelling = word.get_attribute("title")
+        try:
+            modify_inner_html(driver, word, lambda x: x)
+            new_spelling = word.get_attribute("title")
 
-        # handle edges cases
-        new_spelling = (
-            "{" + new_spelling + "}" if new_spelling == "height" else new_spelling
-        )
-        front = "\\ruby{"
-        back = "}{" + new_spelling + "}\\hphantom{ }"
-        wrap_inner_html(driver, word, front, back)
+            # handle edges cases
+            new_spelling = (
+                "{" + new_spelling + "}" if new_spelling == "height" else new_spelling
+            )
+            front = "\\ruby{"
+            back = "}{" + new_spelling + "}\\hphantom{}"
+            wrap_inner_html(driver, word, front, back)
+        except StaleElementReferenceException:
+            pass
 
 
 def insert_line_labels(driver, content, label_prefix):

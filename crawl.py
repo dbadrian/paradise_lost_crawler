@@ -120,7 +120,6 @@ def main(args):
                 # write "incremental" results
                 with open(fn_content, "w") as f:
                     json.dump(book, f)
-                break
         else:
             print("Skipping crawling")
 

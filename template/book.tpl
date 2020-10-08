@@ -1,5 +1,6 @@
 \begin{center}
     \poemtitle{$$ title $$}
+    \vspace{5em}
     $$ subtitle $$
 \end{center}
 
