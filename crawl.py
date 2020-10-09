@@ -6,18 +6,17 @@ import re
 import os
 import logging
 from string import punctuation
-import signal
 import sys
+from shutil import copyfile
+
 from jinja2 import Template, Environment, FileSystemLoader
 
 import selenium
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-
 # from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options
 from tqdm import tqdm
-
 from crawler.links import PARADISE_LOST, PARADISE_REGAINED
 from crawler.latex import convert_raw_to_latex
 
@@ -127,10 +126,18 @@ def main(args):
             content = json.load(f)
         for idx, (name, _) in enumerate(PARADISE_LOST.items()):
             render_latex(p_out.joinpath(f"{name}.tex"), content[name])
-            break
 
         files = {"files": [f"{name}.tex" for name in content.keys()]}
         render_latex(p_out.joinpath(f"content.tex"), files, template="content.tpl")
+
+        render_latex(p_out.joinpath(f"main.tex"),
+                    {
+                        "force_modern_spelling": args.force_modern_spelling,
+                        "disable_modern_spelling": args.disable_modern_spelling,
+                        "disable_annotations": args.disable_annotations
+                    },
+                    template="main.tpl")
+
 
     except KeyboardInterrupt:
         # I know...signal should be handled properly
@@ -154,5 +161,10 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument("--force", "-f", default=False, action="store_true")
+    parser.add_argument("--disable-annotations", default=False, action="store_true")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--disable-modern-spelling", default=False, action="store_true")
+    group.add_argument("--force-modern-spelling", default=False, action="store_true")
+
     args = parser.parse_args()
     main(args)

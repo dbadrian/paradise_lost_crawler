@@ -12,43 +12,6 @@ from .html import (
 INTERNAL_LINK_PREFIX = "https://www.dartmouth.edu/~milton/reading_room/pl/"
 
 
-def insert_link(driver, element):
-    # determine if internal or external by a simple check
-    link = element.get_attribute("href")
-
-    if link:
-        # Detect internal links
-        if (
-            link[: len(INTERNAL_LINK_PREFIX)] == INTERNAL_LINK_PREFIX
-            or link[:3] == "../"
-        ):
-            spl = link.split("#")
-            if len(spl) == 2:
-                book = spl[0].split("/")[-2]
-                label = f"{book}_{spl[1]}"
-
-                append_to_inner_html(driver, element, "\\ref{" + label + "}")
-        else:
-            # external link
-            wrap_inner_html(driver, element, "\href{" + tex_escape(link) + "}{", "}")
-    else:
-        raise NotImplementedError
-
-
-STYLE_MAPPING = {
-    "annotation_keyword": ("\\emph{", "}"),
-    "quote": ("\\begin{quote}", "\\end{quote}"),
-    "link": insert_link,
-    "annotated": ("\\emph{", "}"),
-    "footnote": ("\\footnote{", "}"),
-}
-
-
-def generate_marking(keywords):
-    marking = "?/{}/?"  # just shouldnt look like html tags
-    return marking.format("".join(keywords.split(" ")))
-
-
 def tex_escape(text):
     """
     FROM: https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
@@ -79,6 +42,39 @@ def tex_escape(text):
         )
     )
     return regex.sub(lambda match: conv[match.group()], text)
+
+
+
+def insert_link(driver, element):
+    # determine if internal or external by a simple check
+    link = element.get_attribute("href")
+
+    if link:
+        # Detect internal links
+        if (
+            link[: len(INTERNAL_LINK_PREFIX)] == INTERNAL_LINK_PREFIX
+            or link[:3] == "../"
+        ):
+            spl = link.split("#")
+            if len(spl) == 2:
+                book = spl[0].split("/")[-2]
+                label = f"{book}_{spl[1]}"
+
+                append_to_inner_html(driver, element, "\\ref{" + label + "}")
+        else:
+            # external link
+            wrap_inner_html(driver, element, "\href{" + tex_escape(link) + "}{", "}")
+    else:
+        raise NotImplementedError
+
+
+STYLE_MAPPING = {
+    "annotation_keyword": ("\\emph{", "}"),
+    "quote": ("\\begin{quote}", "\\end{quote}"),
+    "link": insert_link,
+    "annotated": ("\\emph{", "}"),
+    "footnote": ("\\footnote{", "}"),
+}
 
 
 def insert_modern_english_overtext(driver, paragraph):
