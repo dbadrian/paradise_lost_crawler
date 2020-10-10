@@ -99,38 +99,41 @@ def render_latex(p_out, content, template='book.tpl'):
         tex = render_template(template, content)
         f.write(tex)
 
+
 def main(args):
     driver = None
     try:
         print(":: Creating Output Folder")
         p_out = args.output
-        p_out.mkdir(parents=True, exist_ok=True)
-        fn_content = p_out.joinpath("content.json")
-        if not fn_content.exists() or args.force:
-            # Obtain Driver
-            print(":: Obtaining Driver")
-            driver = setup_webdriver(args.driver)
+        p_json = p_out.joinpath("json")
+        p_tex = p_out.joinpath("tex")
+        p_json.mkdir(parents=True, exist_ok=True)
+        p_tex.mkdir(parents=True, exist_ok=True)
+                   
+        for idx, (name, link) in enumerate(PARADISE_LOST.items()):
+            if driver is None:
+                driver = setup_webdriver(args.driver) 
 
-            book = {}
-            
-            for idx, (name, link) in enumerate(PARADISE_LOST.items()):
-                print(f" - Parsing {name}")
-                book[name] = crawl_site(link, driver, name)
+            fn_content = p_json.joinpath(f"{name}.json")
+            if not fn_content.exists() or args.force:
+                print(f" - Crawling and Preprocesing {name}")
+                book = crawl_site(link, driver, name)
                 # write "incremental" results
                 with open(fn_content, "w") as f:
                     json.dump(book, f)
-        else:
-            print("Skipping crawling")
+            else:
+                print(f"`{name}` already crawled. Skipping. Use '-f,--force' to recrawl.")
 
-        with open(fn_content, "r") as f:
-            content = json.load(f)
         for idx, (name, _) in enumerate(PARADISE_LOST.items()):
-            render_latex(p_out.joinpath(f"{name}.tex"), content[name])
+            fn_content = p_json.joinpath(f"{name}.json")
+            with open(fn_content, "r") as f:
+                content = json.load(f)
+            render_latex(p_tex.joinpath(f"{name}.tex"), content)
 
-        files = {"files": [f"{name}.tex" for name in content.keys()]}
-        render_latex(p_out.joinpath(f"content.tex"), files, template="content.tpl")
+        files = {"files": [f"{name}.tex" for name in PARADISE_LOST.keys()]}
+        render_latex(p_tex.joinpath(f"content.tex"), files, template="content.tpl")
 
-        render_latex(p_out.joinpath(f"main.tex"),
+        render_latex(p_tex.joinpath(f"main.tex"),
                     {
                         "force_modern_spelling": args.force_modern_spelling,
                         "disable_modern_spelling": args.disable_modern_spelling,

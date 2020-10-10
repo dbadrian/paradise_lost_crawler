@@ -1,6 +1,9 @@
 import re
 from string import punctuation
-from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+)
 
 from .html import (
     wrap_inner_html,
@@ -11,8 +14,22 @@ from .html import (
 
 INTERNAL_LINK_PREFIX = "https://www.dartmouth.edu/~milton/reading_room/pl/"
 
+ESCAPE_MAPPING = {
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+    "{": r"\{",
+    "}": r"\}",
+    "~": r"\textasciitilde{}",
+    "^": r"\^{}",
+    "\\": r"\textbackslash{}",
+    "<": r"\textless{}",
+    ">": r"\textgreater{}",
+}
 
-def tex_escape(text):
+def tex_escape(text, mapping):
     """
     FROM: https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
     https://creativecommons.org/licenses/by-sa/4.0/
@@ -21,28 +38,14 @@ def tex_escape(text):
     :param text: a plain text message
     :return: the message escaped to appear correctly in LaTeX
     """
-    conv = {
-        "&": r"\&",
-        "%": r"\%",
-        "$": r"\$",
-        "#": r"\#",
-        "_": r"\_",
-        "{": r"\{",
-        "}": r"\}",
-        "~": r"\textasciitilde{}",
-        "^": r"\^{}",
-        "\\": r"\textbackslash{}",
-        "<": r"\textless{}",
-        ">": r"\textgreater{}",
-    }
+
     regex = re.compile(
         "|".join(
             re.escape(str(key))
-            for key in sorted(conv.keys(), key=lambda item: -len(item))
+            for key in sorted(mapping.keys(), key=lambda item: -len(item))
         )
     )
-    return regex.sub(lambda match: conv[match.group()], text)
-
+    return regex.sub(lambda match: mapping[match.group()], text)
 
 
 def insert_link(driver, element):
@@ -63,7 +66,7 @@ def insert_link(driver, element):
                 append_to_inner_html(driver, element, "\\ref{" + label + "}")
         else:
             # external link
-            wrap_inner_html(driver, element, "\href{" + tex_escape(link) + "}{", "}")
+            wrap_inner_html(driver, element, "\href{" + tex_escape(link, ESCAPE_MAPPING) + "}{", "}")
     else:
         raise NotImplementedError
 
@@ -84,12 +87,12 @@ def insert_modern_english_overtext(driver, paragraph):
             modify_inner_html(driver, word, lambda x: x)
             new_spelling = word.get_attribute("title")
 
-            # handle edges cases
-            new_spelling = (
-                "{" + new_spelling + "}" if new_spelling == "height" else new_spelling
-            )
-            front = "\\ruby{"
-            back = "}{" + new_spelling + "}\\hphantom{}"
+            # # handle edges cases
+            # new_spelling = (
+            #     "{{" + new_spelling + "}}" if new_spelling == "height" else new_spelling
+            # )
+            front = "\\ruby{{"
+            back = "}}{{" + new_spelling + "}}\\hphantom{}"
             wrap_inner_html(driver, word, front, back)
         except StaleElementReferenceException:
             pass
@@ -112,7 +115,7 @@ def insert_line_labels(driver, content, label_prefix):
             replace_inner_html(driver, el, "")
 
 
-def insert_word_labels(driver, content):
+def insert_word_labels(driver, content, label_prefix):
     line_els = driver.find_elements_by_tag_name("a")
     for el in line_els:
         name = el.get_attribute("name")
@@ -120,9 +123,7 @@ def insert_word_labels(driver, content):
         href = el.get_attribute("href")
         if name and not el_id and not href:
             # non-empty string
-            replace_inner_html(
-                driver, el, "\label{{{}_{}}}".format(label_prefix, name)
-            )
+            replace_inner_html(driver, el, "\label{{{}_{}}}".format(label_prefix, name))
         else:
             # delete it, no label
             replace_inner_html(driver, el, "")
@@ -192,9 +193,14 @@ def insert_annonations(driver, content):
         driver.execute_script("arguments[0].click();", el)
 
 
+def escape_hashtag(text):
+    regex = re.compile(r"(?<!\\)#")
+    return regex.sub(lambda match: r"\#", text)
+
 def convert_raw_to_latex(driver, content, label_prefix):
     # Replace lines numbers with a latex label
     insert_line_labels(driver, content, label_prefix)
+    # insert_word_labels(driver, content, label_prefix)
 
     # Handles 'varspell' tags -> old and modern spelling
     insert_modern_english_overtext(driver, content)
@@ -206,6 +212,13 @@ def convert_raw_to_latex(driver, content, label_prefix):
     # Some minor encapsulation (manually...cant use tex_escape anymore!)
     text = text.replace("&", "\&")
 
-    # replace \n with latex equivalent
+    # Replace \n with latex equivalent
     text = text.replace("\n", "\\\\")
-    return text.encode('ascii', 'ignore').decode() # implicitly convert to latex and remove unicode (the hebrew...  )
+
+    # Additionaly pass escaping # -- `fix` for book 6
+    # Only match # not yet escaped!
+    text = escape_hashtag(text)
+
+    return text.encode(
+        "ascii", "ignore"
+    ).decode()  # implicitly convert to latex and remove unicode (the hebrew...  )
